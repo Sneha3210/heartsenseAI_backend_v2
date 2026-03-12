@@ -1,3 +1,4 @@
+```python
 import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
@@ -5,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import tensorflow as tf
 import traceback
+import requests
 
 # -------------------------------------------------
 # Model Path
@@ -31,7 +33,15 @@ except Exception as e:
 
 
 # -------------------------------------------------
-# FastAPI
+# ThingSpeak Configuration
+# -------------------------------------------------
+
+THINGSPEAK_CHANNEL_ID = "3143087"
+THINGSPEAK_READ_API_KEY = "0BUW0FE0IF72M1VH"
+
+
+# -------------------------------------------------
+# FastAPI App
 # -------------------------------------------------
 
 app = FastAPI(title="HeartSense AI Backend")
@@ -45,10 +55,18 @@ app.add_middleware(
 )
 
 
+# -------------------------------------------------
+# Root Endpoint
+# -------------------------------------------------
+
 @app.get("/")
 def home():
     return {"status": "HeartSense AI Backend Running"}
 
+
+# -------------------------------------------------
+# Health Check Endpoint
+# -------------------------------------------------
 
 @app.get("/health")
 def health():
@@ -57,3 +75,27 @@ def health():
         "model_loaded": ecg_model is not None,
         "model_error": model_error
     }
+
+
+# -------------------------------------------------
+# ThingSpeak Data Endpoint
+# -------------------------------------------------
+
+@app.get("/thingspeak-final-risk")
+def thingspeak_final_risk():
+    try:
+        url = f"https://api.thingspeak.com/channels/{THINGSPEAK_CHANNEL_ID}/feeds/last.json?api_key={THINGSPEAK_READ_API_KEY}"
+        data = requests.get(url, timeout=5).json()
+
+        return {
+            "status": "success",
+            "message": "ThingSpeak data fetched",
+            "thingspeak_data": data
+        }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+```
