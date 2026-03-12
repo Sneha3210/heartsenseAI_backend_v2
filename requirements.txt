@@ -1,4 +1,7 @@
 fastapi
 uvicorn
-torch
+tensorflow==2.15.0
 numpy
+pandas
+requests
+scikit-learn
