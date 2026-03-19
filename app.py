@@ -1,6 +1,8 @@
 import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
+print("🔥 NEW VERSION DEPLOYED - INPUT FIX APPLIED")
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import tensorflow as tf
@@ -29,7 +31,7 @@ try:
 
     print("Model loaded successfully")
     print("Available signatures:", ecg_model.signatures.keys())
-    print("Input signature:", infer.structured_input_signature)  # 🔍 DEBUG
+    print("Input signature:", infer.structured_input_signature)
 
 except Exception as e:
     print("Model loading failed")
@@ -114,10 +116,10 @@ def thingspeak_final_risk():
             (1, 180, 1)
         )
 
-        # 🔥 FINAL FIX: correct input format for SavedModel
-        prediction = infer(**{"input_1": tf.convert_to_tensor(ecg_tensor)})
+        # ✅ FINAL CORRECT INPUT KEY
+        prediction = infer(**{"input_layer": tf.convert_to_tensor(ecg_tensor)})
 
-        # Extract output tensor
+        # Extract output
         output = list(prediction.values())[0]
 
         predicted_class = int(tf.argmax(output, axis=1)[0])
