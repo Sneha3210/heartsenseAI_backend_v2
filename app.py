@@ -9,11 +9,11 @@ import requests
 import numpy as np
 
 # -------------------------------------------------
-# Model Path (FIXED)
+# Model Path
 # -------------------------------------------------
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "model", "heartsense_model")  # ✅ FIXED
+MODEL_PATH = os.path.join(BASE_DIR, "model", "heartsense_model")
 
 print("Model path:", MODEL_PATH)
 
@@ -129,3 +129,14 @@ def thingspeak_final_risk():
             "status": "error",
             "message": str(e)
         }
+
+
+# -------------------------------------------------
+# 🚀 IMPORTANT: THIS FIXES RENDER ISSUE
+# -------------------------------------------------
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 10000))
+    print(f"Starting server on port {port}")
+    uvicorn.run("app:app", host="0.0.0.0", port=port)
