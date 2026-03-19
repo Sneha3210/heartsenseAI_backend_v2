@@ -1,4 +1,3 @@
-```python
 import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
@@ -7,13 +6,16 @@ from fastapi.middleware.cors import CORSMiddleware
 import tensorflow as tf
 import traceback
 import requests
+import numpy as np
 
 # -------------------------------------------------
 # Model Path
 # -------------------------------------------------
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "model", "heartsense_model")
+
+# IMPORTANT: ensure this matches your repo structure
+MODEL_PATH = os.path.join(BASE_DIR, "model")
 
 print("Model path:", MODEL_PATH)
 
@@ -22,7 +24,12 @@ model_error = None
 
 try:
     print("Loading TensorFlow SavedModel...")
-    ecg_model = tf.keras.models.load_model(MODEL_PATH)
+
+    ecg_model = tf.keras.models.load_model(
+        MODEL_PATH,
+        compile=False
+    )
+
     print("Model loaded successfully")
 
 except Exception as e:
@@ -78,19 +85,66 @@ def health():
 
 
 # -------------------------------------------------
-# ThingSpeak Data Endpoint
+# Helper: Normalize ECG
+# -------------------------------------------------
+
+def normalize_ecg(signal):
+    signal = np.array(signal, dtype=np.float32)
+    return (signal - np.mean(signal)) / (np.std(signal) + 1e-6)
+
+
+# -------------------------------------------------
+# ThingSpeak + Prediction Endpoint
 # -------------------------------------------------
 
 @app.get("/thingspeak-final-risk")
 def thingspeak_final_risk():
+
+    # ❌ If model not loaded → return error clearly
+    if ecg_model is None:
+        return {
+            "status": "error",
+            "message": "Model not loaded",
+            "details": model_error
+        }
+
     try:
-        url = f"https://api.thingspeak.com/channels/{THINGSPEAK_CHANNEL_ID}/feeds/last.json?api_key={THINGSPEAK_READ_API_KEY}"
-        data = requests.get(url, timeout=5).json()
+        # Fetch last 180 ECG values
+        url = f"https://api.thingspeak.com/channels/{THINGSPEAK_CHANNEL_ID}/feeds.json?api_key={THINGSPEAK_READ_API_KEY}&results=180"
+        response = requests.get(url, timeout=5).json()
+        feeds = response.get("feeds", [])
+
+        ecg = [
+            float(f["field4"])
+            for f in feeds
+            if f.get("field4") and float(f["field4"]) != 0
+        ]
+
+        if not ecg:
+            return {"status": "WAITING", "message": "No ECG data"}
+
+        # Pad if less data
+        if len(ecg) < 180:
+            ecg += [ecg[-1]] * (180 - len(ecg))
+
+        ecg = ecg[-180:]
+
+        # Normalize + reshape
+        ecg_tensor = tf.reshape(
+            normalize_ecg(ecg),
+            (1, 180, 1)
+        )
+
+        # Prediction
+        prediction = ecg_model.predict(ecg_tensor, verbose=0)
+
+        predicted_class = int(tf.argmax(prediction, axis=1)[0])
+        confidence = float(tf.reduce_max(prediction))
 
         return {
             "status": "success",
-            "message": "ThingSpeak data fetched",
-            "thingspeak_data": data
+            "prediction": predicted_class,
+            "confidence": round(confidence, 4)
         }
 
     except Exception as e:
@@ -98,4 +152,3 @@ def thingspeak_final_risk():
             "status": "error",
             "message": str(e)
         }
-```
