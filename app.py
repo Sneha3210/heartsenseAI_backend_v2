@@ -9,11 +9,11 @@ import requests
 import numpy as np
 
 # -------------------------------------------------
-# Model Path (CORRECT FOR YOUR REPO)
+# Model Path (FIXED)
 # -------------------------------------------------
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "model")   # ✅ THIS IS CORRECT
+MODEL_PATH = os.path.join(BASE_DIR, "model", "heartsense_model")  # ✅ FIXED
 
 print("Model path:", MODEL_PATH)
 
@@ -60,18 +60,10 @@ app.add_middleware(
 )
 
 
-# -------------------------------------------------
-# Root
-# -------------------------------------------------
-
 @app.get("/")
 def home():
     return {"status": "Backend Running"}
 
-
-# -------------------------------------------------
-# Health Check
-# -------------------------------------------------
 
 @app.get("/health")
 def health():
@@ -82,18 +74,10 @@ def health():
     }
 
 
-# -------------------------------------------------
-# ECG Normalize
-# -------------------------------------------------
-
 def normalize_ecg(signal):
     signal = np.array(signal, dtype=np.float32)
     return (signal - np.mean(signal)) / (np.std(signal) + 1e-6)
 
-
-# -------------------------------------------------
-# Prediction API
-# -------------------------------------------------
 
 @app.get("/thingspeak-final-risk")
 def thingspeak_final_risk():
