@@ -29,6 +29,7 @@ try:
 
     print("Model loaded successfully")
     print("Available signatures:", ecg_model.signatures.keys())
+    print("Input signature:", infer.structured_input_signature)  # 🔍 DEBUG
 
 except Exception as e:
     print("Model loading failed")
@@ -113,10 +114,10 @@ def thingspeak_final_risk():
             (1, 180, 1)
         )
 
-        # 🔥 FIX: Use infer instead of predict
-        prediction = infer(ecg_tensor)
+        # 🔥 FINAL FIX: correct input format for SavedModel
+        prediction = infer(**{"input_1": tf.convert_to_tensor(ecg_tensor)})
 
-        # Get output tensor
+        # Extract output tensor
         output = list(prediction.values())[0]
 
         predicted_class = int(tf.argmax(output, axis=1)[0])
