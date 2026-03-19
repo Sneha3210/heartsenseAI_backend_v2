@@ -11,7 +11,7 @@ import requests
 import numpy as np
 
 # -------------------------------------------------
-# Model Load (SavedModel FIX)
+# Model Load (SavedModel)
 # -------------------------------------------------
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -26,13 +26,11 @@ try:
     ecg_model = tf.saved_model.load(MODEL_PATH)
     infer = ecg_model.signatures["serving_default"]
     print("Model loaded successfully")
-
 except Exception as e:
     print("Model loading failed")
     traceback.print_exc()
     model_error = str(e)
     ecg_model = None
-
 
 # -------------------------------------------------
 # ThingSpeak Config
@@ -55,6 +53,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ✅ ROOT FIX (No more 404)
+@app.get("/")
+def home():
+    return {"status": "Backend Running"}
+
 # -------------------------------------------------
 # Global Variables
 # -------------------------------------------------
@@ -70,12 +73,10 @@ def normalize_ecg(signal):
     signal = np.array(signal, dtype=np.float32)
     return (signal - np.mean(signal)) / (np.std(signal) + 1e-6)
 
-
 def map_ecg_status(predicted_class, confidence):
     if predicted_class == 1 and confidence >= 0.90:
         return "VARIATION"
     return "STABLE"
-
 
 # -------------------------------------------------
 # SpO2 Calibration
@@ -96,7 +97,6 @@ def calibrate_spo2(raw):
 
     return f"{calibrated}%", "Normal", "Normal"
 
-
 # -------------------------------------------------
 # GSR Processing
 # -------------------------------------------------
@@ -111,12 +111,10 @@ def adjust_gsr(gsr_value):
 
     return gsr_value
 
-
 def classify_gsr(gsr_value):
     if gsr_value > 700:
         return "Stressed"
     return "Not Stressed"
-
 
 # -------------------------------------------------
 # Risk Logic
@@ -138,7 +136,6 @@ def final_risk(ecg_status):
 
     return "LOW", "Normal condition"
 
-
 # -------------------------------------------------
 # Motion Detection
 # -------------------------------------------------
@@ -147,7 +144,6 @@ def detect_motion(ax, ay, az, threshold=2000):
     magnitude = np.sqrt(ax**2 + ay**2 + az**2)
     status = "MOTION" if magnitude > threshold else "REST"
     return status, round(float(magnitude), 2)
-
 
 # -------------------------------------------------
 # ThingSpeak Readers
@@ -173,7 +169,6 @@ def read_latest():
         "az": float(d.get("field3") or 0),
     }
 
-
 def read_ecg_window(size=180):
     url = f"https://api.thingspeak.com/channels/{THINGSPEAK_CHANNEL_ID}/feeds.json?api_key={THINGSPEAK_READ_API_KEY}&results={size}"
     feeds = requests.get(url, timeout=5).json().get("feeds", [])
@@ -191,7 +186,6 @@ def read_ecg_window(size=180):
         ecg += [ecg[-1]] * (size - len(ecg))
 
     return ecg[-size:]
-
 
 # -------------------------------------------------
 # API Endpoint
@@ -215,7 +209,7 @@ def thingspeak_final_risk():
 
     ecg_tensor = tf.reshape(normalize_ecg(ecg_window), (1, 180, 1))
 
-    # 🔥 FINAL FIX (SavedModel inference)
+    # ✅ SavedModel prediction FIX
     prediction = infer(**{"input_layer": tf.convert_to_tensor(ecg_tensor)})
     output = list(prediction.values())[0]
 
@@ -256,7 +250,6 @@ def thingspeak_final_risk():
             }
         }
     }
-
 
 # -------------------------------------------------
 # Server Start
