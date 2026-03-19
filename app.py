@@ -53,10 +53,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ ROOT FIX (No more 404)
+# ✅ ROOT ENDPOINT (FIX 404)
 @app.get("/")
 def home():
-    return {"status": "Backend Running"}
+    return {"message": "HeartSense Backend Running"}
 
 # -------------------------------------------------
 # Global Variables
@@ -209,7 +209,7 @@ def thingspeak_final_risk():
 
     ecg_tensor = tf.reshape(normalize_ecg(ecg_window), (1, 180, 1))
 
-    # ✅ SavedModel prediction FIX
+    # ✅ SavedModel prediction
     prediction = infer(**{"input_layer": tf.convert_to_tensor(ecg_tensor)})
     output = list(prediction.values())[0]
 
