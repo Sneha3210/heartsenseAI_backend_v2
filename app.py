@@ -18,17 +18,17 @@ MODEL_PATH = os.path.join(BASE_DIR, "model", "heartsense_model")
 print("Model path:", MODEL_PATH)
 
 ecg_model = None
+infer = None
 model_error = None
 
 try:
     print("Loading TensorFlow SavedModel...")
 
-    ecg_model = tf.keras.models.load_model(
-        MODEL_PATH,
-        compile=False
-    )
+    ecg_model = tf.saved_model.load(MODEL_PATH)
+    infer = ecg_model.signatures["serving_default"]
 
     print("Model loaded successfully")
+    print("Available signatures:", ecg_model.signatures.keys())
 
 except Exception as e:
     print("Model loading failed")
@@ -82,7 +82,7 @@ def normalize_ecg(signal):
 @app.get("/thingspeak-final-risk")
 def thingspeak_final_risk():
 
-    if ecg_model is None:
+    if ecg_model is None or infer is None:
         return {
             "error": "Model not loaded",
             "details": model_error
@@ -113,10 +113,14 @@ def thingspeak_final_risk():
             (1, 180, 1)
         )
 
-        prediction = ecg_model.predict(ecg_tensor, verbose=0)
+        # 🔥 FIX: Use infer instead of predict
+        prediction = infer(ecg_tensor)
 
-        predicted_class = int(tf.argmax(prediction, axis=1)[0])
-        confidence = float(tf.reduce_max(prediction))
+        # Get output tensor
+        output = list(prediction.values())[0]
+
+        predicted_class = int(tf.argmax(output, axis=1)[0])
+        confidence = float(tf.reduce_max(output))
 
         return {
             "status": "success",
@@ -132,7 +136,7 @@ def thingspeak_final_risk():
 
 
 # -------------------------------------------------
-# 🚀 IMPORTANT: THIS FIXES RENDER ISSUE
+# Server Start (Render Fix)
 # -------------------------------------------------
 
 if __name__ == "__main__":
